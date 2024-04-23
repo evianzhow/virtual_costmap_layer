@@ -10,22 +10,13 @@ PLUGINLIB_EXPORT_CLASS(virtual_costmap_layer::VirtualLayer, costmap_2d::Layer);
 
 static const std::string tag {"[VIRTUAL-LAYER] "};
 
-namespace virtual_costmap_layer {
-
+namespace virtual_costmap_layer
+{
 // ---------------------------------------------------------------------
 
 VirtualLayer::VirtualLayer() :
     _dsrv(nullptr)
 {}
-
-// ---------------------------------------------------------------------
-
-VirtualLayer::~VirtualLayer()
-{
-    if (_dsrv) {
-        _dsrv = nullptr;
-    }
-}
 
 // ---------------------------------------------------------------------
 
@@ -49,6 +40,13 @@ void VirtualLayer::onInitialize()
 
     // set initial bounds
     _min_x = _min_y = _max_x = _max_y = 0;
+
+    // Parse ROS parameters
+    nh.getParam("enabled", enabled_);
+    nh.getParam("one_zone", _one_zone_mode);
+    nh.getParam("clear_obstacles", _clear_obstacles);
+    nh.getParam("map_frame", _map_frame);
+    nh.getParam("base_frame", _base_frame);
 
     // reading the defined topics out of the namespace of this plugin!
     std::string param {"zone_topics"};
@@ -114,7 +112,7 @@ void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::s
         if (param_yaml.getType() == XmlRpc::XmlRpcValue::TypeArray) {
 
             for (std::size_t i = 0; i < param_yaml.size(); ++i) {
-                geometry_msgs::Point point;
+                geometry_msgs::Point32 point;
                 Polygon vector_to_add;
                 if (param_yaml[i].getType() == XmlRpc::XmlRpcValue::TypeArray) {
                     if (param_yaml[i].size() == 1) { // add a point
@@ -135,8 +133,8 @@ void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::s
                             _form_points.push_back(point);
                         } else { // add a line
                             vector_to_add.reserve(3);
-                            geometry_msgs::Point a;
-                            geometry_msgs::Point b;
+                            geometry_msgs::Point32 a;
+                            geometry_msgs::Point32 b;
                             try {
                                 convert(param_yaml[i][0], a);
                                 convert(param_yaml[i][1], b);
@@ -147,7 +145,7 @@ void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::s
                             vector_to_add.push_back(b);
 
                             // calculate the normal vector for AB
-                            geometry_msgs::Point n;
+                            geometry_msgs::Point32 n;
                             n.x = b.y - a.y;
                             n.y = a.x - b.x;
                             // get the absolute value of N to normalize it and to set the length of the costmap resolution
@@ -197,8 +195,8 @@ void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::s
 
 // ---------------------------------------------------------------------
 
-// get a point out of the XML Type into a geometry_msgs::Point
-void VirtualLayer::convert(const XmlRpc::XmlRpcValue &val, geometry_msgs::Point &point)
+// get a point out of the XML Type into a geometry_msgs::Point32
+void VirtualLayer::convert(const XmlRpc::XmlRpcValue &val, geometry_msgs::Point32 &point)
 {
     try {
         // check if there a two values for the coordinate
@@ -235,7 +233,7 @@ bool VirtualLayer::robotInZone(const Polygon &zone)
         return true;
     }
 
-    geometry_msgs::Point point = getRobotPoint();
+    geometry_msgs::Point32 point = getRobotPoint();
     std::size_t i, j;
     std::size_t size = zone.size();
     bool result = false;
@@ -484,7 +482,7 @@ void VirtualLayer::rasterizePolygon(const std::vector<PointInt> &polygon, std::v
     }
 }
 
-void VirtualLayer::zoneCallback(const custom_msgs::ZoneConstPtr &zone_msg)
+void VirtualLayer::zoneCallback(const virtual_costmap_layer::ZoneConstPtr &zone_msg)
 {
     if (zone_msg->area.form.size() > 2) {
         Polygon vector_to_add;
@@ -508,7 +506,7 @@ void VirtualLayer::zoneCallback(const custom_msgs::ZoneConstPtr &zone_msg)
     }
 }
 
-void VirtualLayer::obstaclesCallback(const custom_msgs::ObstaclesConstPtr &obstacles_msg)
+void VirtualLayer::obstaclesCallback(const virtual_costmap_layer::ObstaclesConstPtr &obstacles_msg)
 {
     if (_clear_obstacles) {
         _obstacle_polygons.clear();
@@ -525,7 +523,7 @@ void VirtualLayer::obstaclesCallback(const custom_msgs::ObstaclesConstPtr &obsta
                 ROS_INFO_STREAM(tag << "Adding a Circle");
                 // Loop over 36 angles around a circle making a point each time
                 int N = 36;
-                geometry_msgs::Point pt;
+                geometry_msgs::Point32 pt;
                 for (int j = 0; j < N; ++j) {
                     double angle = j * 2 * M_PI / N;
                     pt.x = obstacles_msg->list[i].form[0].x + cos(angle) * obstacles_msg->list[i].form[0].z;
@@ -537,24 +535,24 @@ void VirtualLayer::obstaclesCallback(const custom_msgs::ObstaclesConstPtr &obsta
         } else if (obstacles_msg->list[i].form.size() == 2) {
             ROS_INFO_STREAM(tag << "Adding a Line");
 
-            geometry_msgs::Point point_A = obstacles_msg->list[i].form[0];
-            geometry_msgs::Point point_B = obstacles_msg->list[i].form[1];
+            geometry_msgs::Point32 point_A = obstacles_msg->list[i].form[0];
+            geometry_msgs::Point32 point_B = obstacles_msg->list[i].form[1];
             vector_to_add.push_back(point_A);
             vector_to_add.push_back(point_B);
 
             // calculate the normal vector for AB
-            geometry_msgs::Point point_N;
+            geometry_msgs::Point32 point_N;
             point_N.x = point_B.y - point_A.y;
             point_N.y = point_A.x - point_B.x;
 
             // get the absolute value of N to normalize and get
             // it to the length of the costmap resolution
             double abs_N = sqrt(pow(point_N.x, 2) + pow(point_N.y, 2));
-            point_N.x = point_N.x / abs_N * _costmap_resolution;
-            point_N.y = point_N.y / abs_N * _costmap_resolution;
+            point_N.x /= abs_N * _costmap_resolution;
+            point_N.y /= abs_N * _costmap_resolution;
 
             // calculate the new points to get a polygon which can be filled
-            geometry_msgs::Point point;
+            geometry_msgs::Point32 point;
             point.x = point_A.x + point_N.x;
             point.y = point_A.y + point_N.y;
             vector_to_add.push_back(point);
@@ -575,11 +573,11 @@ void VirtualLayer::obstaclesCallback(const custom_msgs::ObstaclesConstPtr &obsta
     computeMapBounds();
 }
 
-geometry_msgs::Point VirtualLayer::getRobotPoint()
+geometry_msgs::Point32 VirtualLayer::getRobotPoint()
 {
     tf::TransformListener tfListener;
     geometry_msgs::PoseStamped current_robot_pose, current_robot_pose_base;
-    geometry_msgs::Point robot_point;
+    geometry_msgs::Point32 robot_point;
     geometry_msgs::TransformStamped current_transform_msg;
     tf::StampedTransform current_transform_tf;
     try {

@@ -19,15 +19,8 @@
 #include <geometry_msgs/Point.h>
 #include <ros/ros.h>
 
-#include <custom_msgs/Obstacles.h>
-#include <custom_msgs/Zone.h>
-
-// #include <geometry_msgs/PoseStamped.h>
-
-// #include <stdlib.h>
-// #include <tf/transform_datatypes.h>
-
-// #include <unordered_map>
+#include <virtual_costmap_layer/Obstacles.h>
+#include <virtual_costmap_layer/Zone.h>
 
 namespace virtual_costmap_layer {
 
@@ -38,9 +31,9 @@ struct PointInt {
 
 class VirtualLayer : public costmap_2d::Layer {
 public:
-    using Polygon = std::vector<geometry_msgs::Point>;
+    using Polygon = std::vector<geometry_msgs::Point32>;
     VirtualLayer();
-    virtual ~VirtualLayer();
+    virtual ~VirtualLayer() = default;
 
     //// \brief function which get called at initialization of the costmap
     ///        it defines the reconfigure callback, gets params from server and subscribes to topics
@@ -107,16 +100,16 @@ private:
     /// \param param       name of the YAML format parameter where the forms are saved
     void parseFormListFromYaml(const ros::NodeHandle &nh, const std::string &param);
 
-    /// \brief             convert to geometry_msgs::Point a YAML-Array. z-coordinate is set to zero
+    /// \brief             convert to geometry_msgs::Point32 a YAML-Array. z-coordinate is set to zero
     /// \param val         YAML-array with to point-coordinates (x and y)
     /// \param point       variable where the determined point get saved
-    void convert(const XmlRpc::XmlRpcValue &val, geometry_msgs::Point &point);
+    void convert(const XmlRpc::XmlRpcValue &val, geometry_msgs::Point32 &point);
 
     /// \brief zone callback function
-    void zoneCallback(const custom_msgs::ZoneConstPtr &msg);
+    void zoneCallback(const virtual_costmap_layer::ZoneConstPtr &msg);
 
     /// \brief obstacle callback function
-    void obstaclesCallback(const custom_msgs::ObstaclesConstPtr &obstacles_msg);
+    void obstaclesCallback(const virtual_costmap_layer::ObstaclesConstPtr &obstacles_msg);
 
     /// \brief                checks if the robot point is in the polygon defining the zone
     /// \note                 works only for one zone otherwise returns true
@@ -124,9 +117,9 @@ private:
     /// \return bool true     if the robot is in the zone
     bool robotInZone(const Polygon &zone);
 
-    /// \brief gets a current geometry_msgs::Point of the robot
-    /// \return Geometry_msgs::Point current pose
-    geometry_msgs::Point getRobotPoint();
+    /// \brief gets a current geometry_msgs::Point32 of the robot
+    /// \return geometry_msgs::Point32 current pose
+    geometry_msgs::Point32 getRobotPoint();
 
     std::shared_ptr<dynamic_reconfigure::Server<VirtualLayerConfig>> _dsrv; // dynamic_reconfigure server for the costmap
     std::mutex _data_mutex;                                                 // mutex for the accessing forms
@@ -134,11 +127,11 @@ private:
     bool _one_zone_mode, _clear_obstacles;                                  // put in memory previous zones and obstacles if false
     std::string _base_frame;                                                // base frame of the robot by default "base_link"
     std::string _map_frame;                                                 // map frame by default "map"
-    std::vector<geometry_msgs::Point> _obstacle_points;                     // vector to save the obstacle points in source coordinates
+    std::vector<geometry_msgs::Point32> _obstacle_points;                     // vector to save the obstacle points in source coordinates
     std::vector<Polygon> _zone_polygons;                                    // vector to save the zone polygons (more than 3 edges) in source coordinates
     std::vector<Polygon> _obstacle_polygons;                                // vector to save the obstacle polygons (including lines) in source coordinates
     std::vector<Polygon> _form_polygons;                                    // vector to save the form polygons (including lines) in source coordinates
-    std::vector<geometry_msgs::Point> _form_points;                         // vector to save the form points in source coordinates
+    std::vector<geometry_msgs::Point32> _form_points;                         // vector to save the form points in source coordinates
 
     double _min_x, _min_y, _max_x, _max_y; // cached map bounds
 
