@@ -18,6 +18,6 @@
     <exec_depend>message_runtime</exec_depend>
     <!--  -->
     <export>
-        <costmap_2d plugin="${prefix}/costmap_plugins.xml" />
+        <costmap_2d plugin="${prefix}/plugins/costmap_plugins.xml" />
     </export>
 </package>
