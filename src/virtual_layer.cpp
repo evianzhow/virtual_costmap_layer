@@ -132,7 +132,7 @@ void VirtualLayer::parseFormListFromYaml(const ros::NodeHandle &nh, const std::s
                             }
                             _form_points.push_back(point);
                         } else { // add a line
-                            vector_to_add.reserve(3);
+                            vector_to_add.reserve(4);
                             geometry_msgs::Point32 a;
                             geometry_msgs::Point32 b;
                             try {
